@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dandy's World Education</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;700&family=Pixelify+Sans:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  /* Kalau kamu punya font Pixeloid Sans asli, taruh di PixeloidSans.ttf, otomatis dipakai untuk teks Vee */
+  @font-face {
+    font-family: "Pixeloid Sans";
+    src: local("Pixeloid Sans"), url("PixeloidSans.ttf") format("truetype");
+    font-display: swap;
+  }
+  :root {
+    --panel: rgba(24, 20, 58, .78);
+    --ink: #111111;
+    --sun: #ffd23f;
+    --white: #ffffff;
+    --shadow: #0d0b26;
+    --coral: #ff5a5f;
+  }
+  * { box-sizing: border-box; }
+  html { height: 100%; }
+  body {
+    margin: 0; min-height: 100%;
+    font-family: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+    color: var(--ink);
+    background: #14102e url("bg.webp") center / cover no-repeat fixed;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0;
+    background: linear-gradient(rgba(10,8,30,.25), rgba(10,8,30,.55));
+    pointer-events: none;
+  }
+
+  .frame {
+    position: relative;
+    width: 100%; max-width: 760px;
+    background: var(--panel);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    border: 6px solid var(--ink);
+    outline: 3px solid rgba(255,255,255,.35);
+    border-radius: 28px;
+    box-shadow: 0 10px 0 var(--shadow);
+    padding: 24px 22px 24px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .screen { display: none; width: 100%; flex-direction: column; align-items: center; }
+  .screen.active { display: flex; }
+
+  /* ===== Judul: logo + "EDUCATION" ===== */
+  .title { margin: 0; display: flex; flex-direction: column; align-items: center; width: 100%; }
+  .logo { width: clamp(240px, 62vw, 400px); height: auto; display: block; }
+  .edu { width: clamp(230px, 58vw, 380px); height: auto; display: block; margin-top: -2px; overflow: visible; }
+
+  /* ===== Karakter + kotak dialog ===== */
+  .stage {
+    width: 100%; display: flex; align-items: center; justify-content: center;
+    gap: 18px; padding: 18px 0 20px;
+  }
+  .teacher { flex: none; display: grid; place-items: center; }
+  .teacher img {
+    height: clamp(120px, 24vh, 180px); width: auto; max-width: 42vw;
+    display: block; object-fit: contain;
+    filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 6px rgba(255,255,255,.55)) drop-shadow(0 4px 0 rgba(0,0,0,.35));
+  }
+  .teacher.bob img { animation: bob 2.4s ease-in-out infinite; }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+
+  .dlg { flex: 1; max-width: 440px; min-width: 0; }
+  .dlg[data-char="shelly"] {
+    --c1: #dcc3a2; --c2: #e8d3b6; --edge: #f0dfc8;
+    --font: "Fredoka", "Trebuchet MS", sans-serif; --weight: 700; --size: clamp(20px, 5vw, 27px);
+  }
+  .dlg[data-char="vee"] {
+    --c1: #82d48d; --c2: #99e0a2; --edge: #b9efbf;
+    --font: "Pixeloid Sans", "Pixelify Sans", "Courier New", monospace; --weight: 700; --size: clamp(19px, 4.8vw, 25px);
+  }
+  .dlg-name {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-bottom: 8px;
+    font-family: "Fredoka", sans-serif; font-weight: 700;
+    font-size: clamp(24px, 6vw, 32px); color: var(--white);
+    -webkit-text-stroke: 6px var(--ink); paint-order: stroke fill;
+  }
+  .dlg-name img { width: 38px; height: 38px; object-fit: contain; }
+  .dbox {
+    position: relative;
+    min-height: 120px;
+    display: grid; place-items: center;
+    padding: 18px 20px;
+    border: 5px solid var(--ink);
+    border-radius: 18px;
+    background:
+      linear-gradient(rgba(255,255,255,.22), rgba(0,0,0,.14)),
+      repeating-linear-gradient(-45deg, var(--c1) 0 16px, var(--c2) 16px 32px);
+    box-shadow: inset 0 0 0 3px var(--edge), 0 5px 0 rgba(0,0,0,.45);
+  }
+  .dbox.pop { animation: pop .28s ease-out; }
+  @keyframes pop { 0% { transform: scale(.85); opacity: 0; } 70% { transform: scale(1.03); opacity: 1; } 100% { transform: scale(1); } }
+  .dbox p {
+    margin: 0; text-align: center;
+    font-family: var(--font); font-weight: var(--weight); font-size: var(--size);
+    line-height: 1.3; color: var(--white);
+    -webkit-text-stroke: 5px var(--ink); paint-order: stroke fill;
+    letter-spacing: .01em;
+    word-break: break-word;
+  }
+
+  /* ===== Baris tombol ===== */
+  .actions {
+    display: grid; grid-template-columns: 64px 1fr 64px;
+    align-items: end; gap: 14px;
+    width: 100%; max-width: 480px;
+  }
+  button { font-family: inherit; cursor: pointer; color: var(--ink); }
+  .btn-icon {
+    width: 64px; height: 64px; border-radius: 18px;
+    background: var(--white); border: 4px solid var(--ink);
+    box-shadow: 0 5px 0 var(--ink);
+    display: grid; place-items: center;
+    transition: transform .08s, box-shadow .08s;
+  }
+  .btn-icon svg { width: 34px; height: 34px; }
+  .btn-start {
+    height: 72px; border-radius: 22px;
+    background: var(--sun); border: 4px solid var(--ink);
+    box-shadow: 0 7px 0 var(--ink);
+    font-size: 32px; font-weight: 700;
+    transition: transform .08s, box-shadow .08s;
+  }
+  .btn-icon:hover, .btn-start:hover { transform: translateY(-2px); }
+  .btn-icon:active, .btn-start:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
+  button:focus-visible { outline: 4px solid var(--coral); outline-offset: 3px; }
+
+  .char-col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .char-badge {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--white); border: 4px solid var(--ink);
+    display: grid; place-items: center; overflow: hidden;
+  }
+  .char-badge img { width: 88%; height: 88%; object-fit: contain; }
+  .char-badge.pop { animation: pop .3s ease-out; }
+
+  .btn-small {
+    padding: 10px 22px; border-radius: 14px;
+    background: var(--sun); border: 3px solid var(--ink);
+    box-shadow: 0 4px 0 var(--ink);
+    font-size: 18px; font-weight: 700;
+  }
+  .btn-small:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+
+  /* ===== Modal setting ===== */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(10,8,30,.75);
+    display: none; align-items: center; justify-content: center;
+    padding: 16px; z-index: 10;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    width: 100%; max-width: 460px; max-height: calc(100vh - 32px); overflow-y: auto;
+    background: #e6f6ee; border: 5px solid var(--ink); border-radius: 24px;
+    box-shadow: 0 8px 0 var(--shadow); padding: 22px;
+  }
+  .modal h2 { margin: 0 0 16px; font-size: 28px; }
+  .modal .close-row { display: flex; justify-content: flex-end; margin-top: 18px; }
+  .row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--white); border: 3px solid var(--ink); border-radius: 14px;
+    padding: 12px 14px; margin-bottom: 10px; font-size: 18px; font-weight: 500;
+  }
+  .toggle {
+    width: 62px; height: 34px; border-radius: 999px; border: 3px solid var(--ink);
+    background: #c9c9d6; position: relative; padding: 0; transition: background .15s;
+  }
+  .toggle::after {
+    content: ""; position: absolute; top: 3px; left: 3px;
+    width: 22px; height: 22px; border-radius: 50%; background: var(--ink);
+    transition: transform .15s;
+  }
+  .toggle[aria-checked="true"] { background: #5ed38a; }
+  .toggle[aria-checked="true"]::after { transform: translateX(28px); }
+
+  /* ===== Layar Start (sementara) ===== */
+  .soon { text-align: center; color: var(--white); padding: 40px 0; }
+  .soon h2 { font-size: 30px; margin: 0 0 6px; }
+  .soon p { margin: 0 0 18px; font-size: 18px; }
+
+  @media (max-width: 600px) {
+    .stage { flex-direction: column; gap: 12px; }
+    .dlg { width: 100%; max-width: 100%; flex: none; }
+    .teacher img { max-width: 60vw; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .teacher.bob img, .dbox.pop, .char-badge.pop { animation: none; }
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<main class="frame">
+
+  <!-- ===== MAIN MENU ===== -->
+  <section class="screen active" id="screen-menu" aria-label="Menu utama">
+    <h1 class="title" aria-label="Dandy's World Education">
+      <img class="logo" src="logo.png" alt="" aria-hidden="true">
+      <svg class="edu" viewBox="0 0 560 140" aria-hidden="true">
+        <defs>
+          <pattern id="chk" width="30" height="30" patternUnits="userSpaceOnUse">
+            <rect width="30" height="30" fill="#86cf9f"/>
+            <rect width="15" height="15" fill="#9fdbbb"/>
+            <rect x="15" y="15" width="15" height="15" fill="#9fdbbb"/>
+          </pattern>
+        </defs>
+        <g font-family="Fredoka, 'Trebuchet MS', sans-serif" font-weight="700" font-size="88" text-anchor="middle"
+           stroke-linejoin="round" textLength="500">
+          <!-- bayangan 3D -->
+          <text x="280" y="110" textLength="500" lengthAdjust="spacingAndGlyphs" fill="#111" stroke="#111" stroke-width="22">EDUCATION</text>
+          <!-- huruf -->
+          <text x="280" y="102" textLength="500" lengthAdjust="spacingAndGlyphs" fill="url(#chk)" stroke="#111" stroke-width="14" paint-order="stroke fill">EDUCATION</text>
+        </g>
+      </svg>
+    </h1>
+
+    <div class="stage">
+      <div class="teacher bob" id="teacher"><img id="teacherImg" alt=""></div>
+      <div class="dlg" id="dlg" data-char="vee">
+        <div class="dlg-name"><span id="teacherName"></span><img id="nameIcon" alt=""></div>
+        <div class="dbox" id="dbox"><p id="dialog" aria-live="polite"></p></div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-icon" id="btnSettings" aria-label="Pengaturan">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1c1c3a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+          <circle cx="12" cy="12" r="3.2"/>
+          <path d="M10.3 2.5h3.4l.5 2.4 1.9.8 2.1-1.3 2.4 2.4-1.3 2.1.8 1.9 2.4.5v3.4l-2.4.5-.8 1.9 1.3 2.1-2.4 2.4-2.1-1.3-1.9.8-.5 2.4h-3.4l-.5-2.4-1.9-.8-2.1 1.3-2.4-2.4 1.3-2.1-.8-1.9-2.4-.5v-3.4l2.4-.5.8-1.9-1.3-2.1 2.4-2.4 2.1 1.3 1.9-.8z"/>
+        </svg>
+      </button>
+
+      <button class="btn-start" id="btnStart">Start</button>
+
+      <div class="char-col">
+        <div class="char-badge" id="badge"><img id="badgeImg" alt=""></div>
+        <button class="btn-icon" id="btnChar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#1c1c3a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+            <path d="M12 6.5a2.2 2.2 0 1 1 2.2-2.2"/>
+            <path d="M12 6.5v2.3L3.5 15.2a1.6 1.6 0 0 0 1 2.9h15a1.6 1.6 0 0 0 1-2.9L12 8.8"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== LAYAR START (sementara, nanti diganti soal) ===== -->
+  <section class="screen" id="screen-start" aria-label="Mulai">
+    <div class="soon">
+      <h2>Siap belajar?</h2>
+      <p>10 soal pilihan ganda (A, B, C, D) akan muncul di sini.</p>
+      <button class="btn-small" id="btnBack">Kembali ke menu</button>
+    </div>
+  </section>
+
+</main>
+
+<!-- ===== MODAL SETTING ===== -->
+<div class="overlay" id="modalSettings" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+  <div class="modal">
+    <h2 id="setTitle">Pengaturan</h2>
+    <div class="row"><span>Musik</span>
+      <button class="toggle" id="tgMusic" role="switch" aria-checked="true" aria-label="Musik"></button></div>
+    <div class="row"><span>Suara dialog &amp; tombol</span>
+      <button class="toggle" id="tgSound" role="switch" aria-checked="true" aria-label="Suara dialog dan tombol"></button></div>
+    <div class="row"><span>Animasi karakter</span>
+      <button class="toggle" id="tgAnim" role="switch" aria-checked="true" aria-label="Animasi karakter"></button></div>
+    <div class="close-row"><button class="btn-small" data-close>Selesai</button></div>
+  </div>
+</div>
+
+<audio id="bgm" src="music.mp3" loop preload="auto"></audio>
+
+<script>
+/* ================= DATA KARAKTER =================
+   Mau ubah kalimat dialog? Edit bagian "text". Suara = file di folder . */
+const TEACHERS = [
+  {
+    id: "vee", name: "Vee", img: "vee.png", sfx: "vee_chat.mp3",
+    text: "Hallo aku Vee, aku akan mengarahkan mu cara menjawab soal disini"
+  },
+  {
+    id: "shelly", name: "Shelly", img: "shelly.png", sfx: "shelly_talking.mp3",
+    text: "Hallo aku Shelly, kalau mau aku bisa mengajari mu soal fosil"
+  }
+];
+
+/* ================= PENYIMPANAN ================= */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+let state = {
+  teacher: store.get("dwe_teacher", TEACHERS[0].id),
+  music: store.get("dwe_music", true),
+  sound: store.get("dwe_sound", true),
+  anim: store.get("dwe_anim", true)
+};
+if (!TEACHERS.find(t => t.id === state.teacher)) state.teacher = TEACHERS[0].id;
+
+const $ = id => document.getElementById(id);
+const idx = () => TEACHERS.findIndex(t => t.id === state.teacher);
+const current = () => TEACHERS[idx()];
+
+/* ================= SUARA ================= */
+const sfx = {};
+TEACHERS.forEach(t => { const a = new Audio(t.sfx); a.preload = "auto"; sfx[t.id] = a; });
+
+const bgm = $("bgm");
+bgm.volume = 0.35;
+function playMusic() {
+  if (!state.music) return;
+  const p = bgm.play();
+  if (p && p.catch) p.catch(() => {});
+}
+function syncMusic() { state.music ? playMusic() : bgm.pause(); }
+
+/* Suara dialog: dimainkan setiap kotak dialog muncul */
+let pendingDialogSound = false;
+function playDialogSound() {
+  if (!state.sound) return;
+  Object.values(sfx).forEach(a => { a.pause(); a.currentTime = 0; });
+  const p = sfx[current().id].play();
+  if (p && p.catch) p.catch(() => { pendingDialogSound = true; });
+}
+
+/* Efek klik tombol (bunyi sederhana) */
+let audioCtx;
+function beep(freq = 520, dur = 0.08) {
+  if (!state.sound) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = "square"; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.05, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + dur);
+  } catch (e) {}
+}
+
+/* Browser memblokir suara otomatis: musik dan suara dialog pertama menyusul saat layar pertama kali disentuh */
+function firstGesture(e) {
+  document.removeEventListener("pointerdown", firstGesture);
+  document.removeEventListener("keydown", firstGesture);
+  playMusic();
+  if (pendingDialogSound && !(e.target.closest && e.target.closest("#btnStart,#btnChar"))) {
+    pendingDialogSound = false;
+    playDialogSound();
+  }
+}
+document.addEventListener("pointerdown", firstGesture);
+document.addEventListener("keydown", firstGesture);
+
+/* ================= DIALOG ================= */
+let typeTimer;
+function showDialog() {
+  const t = current();
+  $("dlg").dataset.char = t.id;
+  $("teacherName").textContent = t.name;
+  $("nameIcon").src = t.img;
+
+  const box = $("dbox");
+  box.classList.remove("pop"); void box.offsetWidth;
+  if (state.anim) box.classList.add("pop");
+
+  playDialogSound();
+
+  clearInterval(typeTimer);
+  const el = $("dialog");
+  el.textContent = "";
+  const len = t.text.length;
+  const dur = (sfx[t.id].duration && isFinite(sfx[t.id].duration)) ? sfx[t.id].duration * 1000 : 1200;
+  const step = Math.max(22, Math.min(55, dur / len));
+  let i = 0;
+  typeTimer = setInterval(() => {
+    el.textContent = t.text.slice(0, ++i);
+    if (i >= len) clearInterval(typeTimer);
+  }, step);
+}
+
+/* ================= TAMPILAN KARAKTER ================= */
+function renderTeacher() {
+  const t = current();
+  const other = TEACHERS[(idx() + 1) % TEACHERS.length];
+  $("teacherImg").src = t.img;
+  $("teacherImg").alt = t.name;
+  $("badgeImg").src = t.img;
+  $("badgeImg").alt = "Karakter sekarang: " + t.name;
+  $("btnChar").setAttribute("aria-label", "Ganti karakter ke " + other.name);
+  $("btnChar").title = "Ganti ke " + other.name;
+  $("teacher").classList.toggle("bob", state.anim);
+}
+
+/* Tombol gantungan baju: ganti karakter */
+$("btnChar").addEventListener("click", () => {
+  state.teacher = TEACHERS[(idx() + 1) % TEACHERS.length].id;
+  store.set("dwe_teacher", state.teacher);
+  renderTeacher();
+  showDialog();
+  const b = $("badge");
+  b.classList.remove("pop"); void b.offsetWidth; if (state.anim) b.classList.add("pop");
+});
+
+/* ================= MODAL SETTING ================= */
+function openModal(el) { el.classList.add("open"); const b = el.querySelector("button"); b && b.focus(); }
+function closeModals() { document.querySelectorAll(".overlay.open").forEach(o => o.classList.remove("open")); }
+document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => { beep(420); closeModals(); }));
+document.querySelectorAll(".overlay").forEach(o => o.addEventListener("click", e => { if (e.target === o) closeModals(); }));
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModals(); });
+$("btnSettings").addEventListener("click", () => { beep(480); openModal($("modalSettings")); });
+
+function bindToggle(id, key, after) {
+  const b = $(id);
+  b.setAttribute("aria-checked", state[key]);
+  b.addEventListener("click", () => {
+    state[key] = !state[key];
+    b.setAttribute("aria-checked", state[key]);
+    store.set("dwe_" + key, state[key]);
+    if (after) after();
+    beep(600);
+  });
+}
+bindToggle("tgMusic", "music", syncMusic);
+bindToggle("tgSound", "sound");
+bindToggle("tgAnim", "anim", renderTeacher);
+
+/* ================= START & KEMBALI ================= */
+function show(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  $(id).classList.add("active");
+}
+$("btnStart").addEventListener("click", () => {
+  beep(800, 0.12);
+  clearInterval(typeTimer);
+  show("screen-start");
+  // TODO: panggil fungsi untuk memulai kuis 10 soal di sini
+});
+$("btnBack").addEventListener("click", () => { beep(420); show("screen-menu"); showDialog(); });
+
+/* ================= MULAI ================= */
+renderTeacher();
+showDialog();
+</script>
+</body>
+</html>
