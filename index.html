@@ -224,10 +224,33 @@
   .btn-start:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
   /* ===== Hasil ===== */
-  .result { text-align: center; color: var(--white); padding: 30px 0; }
+  .result { text-align: center; color: var(--white); padding: 20px 0 10px; width: 100%; display: flex; flex-direction: column; align-items: center; }
   .result h2 { font-size: 34px; margin: 0 0 6px; }
-  .result .big { font-size: 72px; font-weight: 700; color: var(--sun); -webkit-text-stroke: 5px var(--ink); paint-order: stroke fill; margin: 6px 0; }
-  .result p { margin: 0 0 20px; font-size: 18px; }
+  .result p { margin: 0 0 12px; font-size: 18px; }
+  .score-ring {
+    position: relative;
+    width: 180px; height: 180px;
+    margin: 8px 0 18px;
+  }
+  .score-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .score-ring .bg {
+    fill: none; stroke: rgba(255,255,255,.18); stroke-width: 12;
+  }
+  .score-ring .fg {
+    fill: none; stroke: var(--sun); stroke-width: 12;
+    stroke-linecap: round;
+    stroke-dasharray: 339.292; /* 2 * pi * 54 */
+    stroke-dashoffset: 339.292;
+    transition: stroke-dashoffset 1.6s cubic-bezier(.22,.9,.3,1);
+  }
+  .score-ring .score-num {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    font-size: 48px; font-weight: 700; color: var(--sun);
+    -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill;
+    pointer-events: none;
+  }
+  .result .btn-start { margin-top: 8px; }
 
   /* ===== Modal setting ===== */
   .overlay {
@@ -273,6 +296,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .teacher.bob img, .pop { animation: none; }
+    .score-ring .fg { transition: none; }
     * { transition: none !important; }
   }
 </style>
@@ -352,8 +376,8 @@
 
     <div class="qactions" id="qActions" hidden>
       <div class="namerow" id="nameRow" hidden>
-        <input id="nameInput" type="text" maxlength="8" autocomplete="off" autocapitalize="words" spellcheck="false"
-               placeholder="Nama (maks. 8 huruf)" aria-label="Nama kamu, maksimal 8 huruf">
+        <input id="nameInput" type="text" maxlength="20" autocomplete="off" autocapitalize="words" spellcheck="false"
+               placeholder="Nama (maks. 8 huruf)" aria-label="Nama kamu">
       </div>
       <button class="btn-start" id="btnNext">Mengerti!</button>
     </div>
@@ -364,7 +388,13 @@
     <div class="result">
       <h2>Selesai!</h2>
       <p id="resultLabel">Total poin kamu</p>
-      <div class="big" id="finalPoints">0</div>
+      <div class="score-ring" aria-hidden="true">
+        <svg viewBox="0 0 120 120">
+          <circle class="bg" cx="60" cy="60" r="54"/>
+          <circle class="fg" id="scoreCircle" cx="60" cy="60" r="54"/>
+        </svg>
+        <div class="score-num" id="finalPoints">0</div>
+      </div>
       <p id="resultNote"></p>
       <button class="btn-start" id="btnHome">Ke menu</button>
     </div>
@@ -405,16 +435,17 @@ const TEACHERS = [
     intro: "Hah, mau mulai sekarang? Baiklah, caranya mudah. Kamu tinggal membaca soal yang bakalan ada di layar, lalu memilih jawaban A, B, C, atau D. Pilih pilihan yang paling tepat, jangan sampai salah!"
   }
 ];
-const SHOWTIME = { id: "showtime", name: "Showtime", img: "showtime.jpg", sfx: "vee-twisted.mp3", framed: true };
+const SHOWTIME = { id: "showtime", name: "Showtime", img: "showtime.jpg", sfx: null, framed: true };
 
 /* ================= DATA SOAL =================
-   answer = nomor jawaban benar (0=A, 1=B, 2=C, 3=D), -1 kalau belum ada
-   hint   = dialog karakter setelah pilihan A-D muncul
-   showtime = dialog Showtime sebelum soal ini muncul
-   Tambah soal baru: salin satu blok lalu isi. */
+   answer = nomor jawaban benar (0=A, 1=B, 2=C, 3=D)
+   type: "text" = soal isian bebas (maks. maxLen huruf), selalu dapat POINT
+   hint   = dialog karakter setelah pilihan / isian muncul
+   pre    = percakapan sebelum soal */
 const TOTAL_SOAL = 10;
 const POINT = 10;
 const NAME_MAX = 8;
+const TEXT_MAX = 20;
 const QUESTIONS = [
   {
     text: "Siapa nama karakter yang dimana berkepala TV?",
@@ -426,9 +457,6 @@ const QUESTIONS = [
     }
   },
   {
-    /* pre = percakapan sebelum soal muncul, urut dari atas ke bawah.
-       who: "showtime" atau "teacher" (karakter yang dipilih). {name} = nama pemain.
-       ask: "name" = pemain mengetik nama (maks. 8 huruf). */
     pre: [
       { who: "showtime", ask: "name", button: "Kirim",
         text: "Ohh, lihat siapa yang mencoba mendapatkan nilai 100 hari ini. Bisa sebutkan namamu?" },
@@ -474,6 +502,52 @@ const QUESTIONS = [
       shelly: ".....",
       vee: "....."
     }
+  },
+  {
+    text: "Ada berapa main toon di dw (termaksud event)",
+    options: ["7", "5", "10", "8"],
+    answer: 3,
+    hint: {
+      shelly: "Hayoohhh ada berapa?",
+      vee: "Ohh yah jelas cuman 1 yaitu aku😏"
+    }
+  },
+  {
+    text: "Ada berapa toon yang dimana unplayable atau gak bisa dimainkan",
+    options: ["1", "2", "3", "Gak ada"],
+    answer: 1,
+    hint: {
+      shelly: "Uhhhmmm ada berapa yahh, ayok ingat",
+      vee: "Uhmmmm paling scraps"
+    }
+  },
+  {
+    text: "Apa nama jawbreaker disaat sebelum di rework atau di ubah",
+    options: ["jaw candy", "hard candy", "enigma candy", "Candy"],
+    answer: 2,
+    hint: {
+      shelly: "Penghancur rahang, hati hati disaat membeli itu apalagi kalau kamu maksa menggigitnya dengan keras nanti rahang mu yang hancur bukan gula gulanya",
+      vee: "Aku tidak punya mulut jadi aku tidak bisa membantu banyak :)"
+    }
+  },
+  {
+    text: "Apa misteri yang pernah ada di dandy world tapi sekarang sudah dihapus",
+    options: ["Baldi", "Minecraft", "Kinito", "Fnaf"],
+    answer: 2,
+    hint: {
+      shelly: "Wohh aku ingat, tapi aku agak lupa namanya tapi aku tau bentuknya :(",
+      vee: "Ohh yang itu yang kayak gitu dia nya bisa begitu tapi sayangnya dia sekarang begini padahal dulu kayak gitu, aku sudah berusaha membantu muh semaksimal mungkin"
+    }
+  },
+  {
+    type: "text",
+    text: "Kalian mau tugas ini lagi atau tidak?",
+    maxLen: 20,
+    answer: true,
+    hint: {
+      shelly: "Terimakasih sudah menjawab seluruh soal yang ada disini mohon di screenshot setelah dikasih nilai fullnya terus kirimkan ke grup yah",
+      vee: "Akhirnya kamu selesai juga, bahkan siput lebih cepat dari kamu, mohon di screenshot setelah dikasih nilai penuh dan kirim ke grup terus blah blah blah aku ada urusan byee"
+    }
   }
 ];
 
@@ -498,34 +572,48 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 /* ================= SUARA ================= */
 const sfx = {};
 TEACHERS.forEach(t => { const a = new Audio(t.sfx); a.preload = "auto"; sfx[t.id] = a; });
-if (SHOWTIME.sfx) {
-  const a = new Audio(SHOWTIME.sfx);
-  a.preload = "auto";
-  sfx[SHOWTIME.id] = a;
-}
 
 const bgm = $("bgm");
 bgm.volume = 0.35;
+let musicUnlocked = false;
+
 function playMusic() {
   if (!state.music) return;
+  // Paksa load ulang kalau belum pernah berhasil (bantu beberapa browser)
+  if (!musicUnlocked && bgm.readyState < 2) {
+    try { bgm.load(); } catch (e) {}
+  }
   const p = bgm.play();
-  if (p && p.catch) p.catch(() => {});
+  if (p && p.then) {
+    p.then(() => { musicUnlocked = true; }).catch(() => {});
+  }
 }
-function syncMusic() { state.music ? playMusic() : bgm.pause(); }
+function syncMusic() {
+  if (state.music) playMusic();
+  else bgm.pause();
+}
 
 let pendingDialogSound = null;
 function playSpeakerSound(sp) {
-  if (!state.sound || !sp.sfx) return;
+  if (!state.sound || !sp || !sp.sfx) return;
   Object.values(sfx).forEach(a => { a.pause(); a.currentTime = 0; });
-  const p = sfx[sp.id].play();
+  const a = sfx[sp.id];
+  if (!a) return;
+  const p = a.play();
   if (p && p.catch) p.catch(() => { pendingDialogSound = sp; });
 }
 
 let audioCtx;
+function unlockAudio() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  } catch (e) {}
+}
 function beep(freq = 520, dur = 0.08) {
   if (!state.sound) return;
   try {
-    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    unlockAudio();
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
     o.type = "square"; o.frequency.value = freq;
     g.gain.setValueAtTime(0.05, audioCtx.currentTime);
@@ -538,14 +626,20 @@ function beep(freq = 520, dur = 0.08) {
 function firstGesture(e) {
   document.removeEventListener("pointerdown", firstGesture);
   document.removeEventListener("keydown", firstGesture);
+  unlockAudio();
   playMusic();
   if (pendingDialogSound && !(e.target.closest && e.target.closest("#btnStart,#btnChar"))) {
     const sp = pendingDialogSound; pendingDialogSound = null;
     playSpeakerSound(sp);
   }
 }
-document.addEventListener("pointerdown", firstGesture);
-document.addEventListener("keydown", firstGesture);
+document.addEventListener("pointerdown", firstGesture, { once: false });
+document.addEventListener("keydown", firstGesture, { once: false });
+
+// Coba lagi saat tab kembali aktif (berguna di mobile)
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && state.music) playMusic();
+});
 
 /* ================= DIALOG =================
    p = awalan id elemen: "m" (menu) atau "q" (layar soal) */
@@ -554,7 +648,7 @@ function speak(sp, text, p) {
   const dlg = $(p + "Dlg");
   dlg.dataset.char = sp.id;
   $(p + "Name").textContent = sp.name;
-  $(p + "Icon").src = sp.img;
+  $(p + "Icon").src = sp.img || sp.icon || "";
   const img = $(p + "Img");
   img.src = sp.img; img.alt = sp.name;
   img.classList.toggle("framed", !!sp.framed);
@@ -570,10 +664,10 @@ function speak(sp, text, p) {
   el.textContent = "";
   const len = text.length;
   let step = 28;
-  if (sp.sfx) {
+  if (sp.sfx && sfx[sp.id]) {
     const d = sfx[sp.id].duration;
     const dur = (d && isFinite(d)) ? d * 1000 : 1200;
-    step = Math.max(22, Math.min(55, dur / len));
+    step = Math.max(22, Math.min(55, dur / Math.max(len, 1)));
   }
   let i = 0;
   typeTimer = setInterval(() => {
@@ -601,6 +695,7 @@ $("btnChar").addEventListener("click", () => {
   store.set("dwe_teacher", state.teacher);
   renderTeacher();
   menuDialog();
+  playMusic(); // pastikan musik jalan setelah interaksi
   const b = $("badge");
   b.classList.remove("pop"); void b.offsetWidth; if (state.anim) b.classList.add("pop");
 });
@@ -611,7 +706,7 @@ function closeModals() { document.querySelectorAll(".overlay.open").forEach(o =>
 document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => { beep(420); closeModals(); }));
 document.querySelectorAll(".overlay").forEach(o => o.addEventListener("click", e => { if (e.target === o) closeModals(); }));
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeModals(); });
-$("btnSettings").addEventListener("click", () => { beep(480); openModal($("modalSettings")); });
+$("btnSettings").addEventListener("click", () => { beep(480); openModal($("modalSettings")); playMusic(); });
 
 function bindToggle(id, key, after) {
   const b = $(id);
@@ -624,7 +719,10 @@ function bindToggle(id, key, after) {
     beep(600);
   });
 }
-bindToggle("tgMusic", "music", syncMusic);
+bindToggle("tgMusic", "music", () => {
+  unlockAudio();
+  syncMusic();
+});
 bindToggle("tgSound", "sound");
 bindToggle("tgAnim", "anim", renderTeacher);
 
@@ -633,6 +731,7 @@ let flow = 0;          // dipakai untuk membatalkan alur lama kalau pemain kelua
 let quiz = { i: 0, points: 0 };
 let playerName = "";
 let nextAction = null;
+let freeTextMode = false; // true saat soal isian bebas
 
 function show(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -641,6 +740,7 @@ function show(id) {
 }
 function resetQuizUI() {
   ["qHead", "qBox", "qOpts", "qSpeaker", "qActions", "nameRow"].forEach(id => $(id).hidden = true);
+  freeTextMode = false;
 }
 function setAction(label, fn) {
   $("btnNext").textContent = label;
@@ -653,6 +753,8 @@ function setAction(label, fn) {
 /* Tekan Start: karakter yang dipilih menjelaskan cara menjawab */
 $("btnStart").addEventListener("click", () => {
   beep(800, 0.12);
+  unlockAudio();
+  playMusic(); // pastikan musik nyala setelah klik Start
   flow++;
   clearInterval(typeTimer);
   quiz = { i: 0, points: 0 };
@@ -666,7 +768,13 @@ $("btnStart").addEventListener("click", () => {
 
 $("btnNext").addEventListener("click", () => {
   beep(700, 0.1);
-  if (nextAction) { const f = nextAction; nextAction = null; $("qActions").hidden = true; $("nameRow").hidden = true; f(); }
+  if (nextAction) {
+    const f = nextAction;
+    nextAction = null;
+    $("qActions").hidden = true;
+    $("nameRow").hidden = true;
+    f();
+  }
 });
 
 /* Sebelum soal tampil: kalau ada percakapan (pre), jalankan dulu satu per satu */
@@ -680,6 +788,7 @@ function nextQuestion(i) {
 }
 
 function cleanName(v) { return Array.from(v.trim()).slice(0, NAME_MAX).join(""); }
+function cleanText(v, max) { return Array.from(v.trim()).slice(0, max).join(""); }
 
 function runSteps(steps, n, i) {
   if (n >= steps.length) return renderQuestion(i);
@@ -695,6 +804,10 @@ function runSteps(steps, n, i) {
   if (st.ask === "name") {
     const input = $("nameInput");
     input.value = "";
+    input.maxLength = NAME_MAX;
+    input.placeholder = "Nama (maks. 8 huruf)";
+    input.setAttribute("aria-label", "Nama kamu, maksimal 8 huruf");
+    freeTextMode = false;
     btn.disabled = true;
     setAction(st.button, () => {
       playerName = cleanName(input.value);
@@ -708,16 +821,18 @@ function runSteps(steps, n, i) {
     setAction(st.button, () => runSteps(steps, n + 1, i));
   }
 }
+
 $("nameInput").addEventListener("input", e => {
-  const v = cleanName(e.target.value);
-  if (v !== e.target.value.trim() && Array.from(e.target.value).length > NAME_MAX) e.target.value = v;
+  const max = freeTextMode ? (QUESTIONS[quiz.i]?.maxLen || TEXT_MAX) : NAME_MAX;
+  const v = freeTextMode ? cleanText(e.target.value, max) : cleanName(e.target.value);
+  if (Array.from(e.target.value).length > max) e.target.value = v;
   $("btnNext").disabled = v.length === 0;
 });
 $("nameInput").addEventListener("keydown", e => {
   if (e.key === "Enter" && !$("btnNext").disabled) $("btnNext").click();
 });
 
-/* Urutan: soal muncul dulu, lalu A B C D, lalu dialog karakter */
+/* Urutan: soal muncul dulu, lalu A B C D (atau isian), lalu dialog karakter */
 async function renderQuestion(i) {
   const tok = ++flow;
   const q = QUESTIONS[i];
@@ -732,6 +847,29 @@ async function renderQuestion(i) {
   box.classList.remove("pop"); void box.offsetWidth; if (state.anim) box.classList.add("pop");
   beep(560, 0.1);
 
+  // ===== Soal isian bebas (soal 10) =====
+  if (q.type === "text") {
+    freeTextMode = true;
+    const input = $("nameInput");
+    input.value = "";
+    input.maxLength = q.maxLen || TEXT_MAX;
+    input.placeholder = "Tulis jawaban (maks. " + (q.maxLen || TEXT_MAX) + " huruf)";
+    input.setAttribute("aria-label", "Jawaban bebas, maksimal " + (q.maxLen || TEXT_MAX) + " huruf");
+    $("nameRow").hidden = false;
+    $("btnNext").disabled = true;
+    setAction("Kirim", () => {
+      const answer = cleanText(input.value, q.maxLen || TEXT_MAX);
+      if (!answer) return;
+      quiz.points += POINT; // selalu dapat poin
+      // tampilkan dialog hint lalu tombol lanjut ke hasil
+      showPostTextDialog(i);
+    });
+    await sleep(400); if (tok !== flow) return;
+    try { input.focus(); } catch (e) {}
+    return;
+  }
+
+  // ===== Soal pilihan ganda =====
   const opts = $("qOpts");
   opts.innerHTML = "";
   const letters = ["A", "B", "C", "D"];
@@ -762,6 +900,19 @@ async function renderQuestion(i) {
   }
 }
 
+function showPostTextDialog(i) {
+  const q = QUESTIONS[i];
+  resetQuizUI();
+  $("qHead").hidden = false;
+  $("qNum").textContent = "Soal " + (i + 1) + " / " + TOTAL_SOAL;
+  const hint = q.hint && q.hint[current().id];
+  if (hint) {
+    $("qSpeaker").hidden = false;
+    speak(current(), hint, "q");
+  }
+  setAction("Lanjut", () => showResult());
+}
+
 /* Pilih A/B/C/D: poin disimpan dulu, ditampilkan di akhir */
 async function pick(i, k, btns) {
   const tok = flow;
@@ -777,12 +928,33 @@ async function pick(i, k, btns) {
 
 function showResult() {
   resetQuizUI();
-  $("finalPoints").textContent = quiz.points;
   $("resultLabel").textContent = playerName ? "Total poin " + playerName : "Total poin kamu";
-  $("resultNote").textContent = QUESTIONS.length < TOTAL_SOAL
-    ? "Soal " + (QUESTIONS.length + 1) + " sampai " + TOTAL_SOAL + " masih menyusul."
-    : "Terima kasih sudah bermain!";
+  $("resultNote").textContent = "Terima kasih sudah bermain!";
+  $("finalPoints").textContent = "0";
+
+  // reset circle
+  const circle = $("scoreCircle");
+  const circumference = 2 * Math.PI * 54; // ≈ 339.292
+  circle.style.strokeDasharray = circumference;
+  circle.style.strokeDashoffset = circumference;
+
   show("screen-result");
+
+  // animasi isi lingkaran + angka naik
+  const target = quiz.points;
+  const duration = 1600;
+  const start = performance.now();
+
+  function tick(now) {
+    const t = Math.min(1, (now - start) / duration);
+    // ease out cubic
+    const ease = 1 - Math.pow(1 - t, 3);
+    const val = Math.round(ease * target);
+    $("finalPoints").textContent = val;
+    circle.style.strokeDashoffset = circumference * (1 - (target / 100) * ease);
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
 }
 
 function toMenu() {
@@ -792,6 +964,7 @@ function toMenu() {
   resetQuizUI();
   show("screen-menu");
   menuDialog();
+  playMusic();
 }
 $("btnQuit").addEventListener("click", () => { beep(420); toMenu(); });
 $("btnHome").addEventListener("click", () => { beep(420); toMenu(); });
@@ -799,6 +972,8 @@ $("btnHome").addEventListener("click", () => { beep(420); toMenu(); });
 /* ================= MULAI ================= */
 renderTeacher();
 menuDialog();
+// Coba putar musik segera (akan gagal di browser yang ketat, tapi firstGesture akan menangani)
+playMusic();
 </script>
 </body>
 </html>
